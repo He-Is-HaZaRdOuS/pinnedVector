@@ -77,6 +77,7 @@
 
 #include <assert.h>
 #include <type_traits>
+#include "stdint.h"
 
 
 
@@ -104,6 +105,7 @@
 		(mprotect((beg), (size), PROT_READ|PROT_WRITE)==0, 1)
 		//(mprotect((beg), (size), PROT_READ|PROT_WRITE)==0) && (mlock((beg), (size)) == 0 && (((unsigned char*)beg)[size-1] = 0, 1))
 
+#define maxElCount UINT64_MAX
 
 #define PINNED_VECTOR_FREE_MEMORY(beg) munmap((beg), maxElCount*sizeof(T))
 //#define PINNED_VECTOR_FREE_MEMORY(beg) ::free((void*)beg)

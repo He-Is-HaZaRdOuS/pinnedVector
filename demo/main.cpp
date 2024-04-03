@@ -156,6 +156,6 @@ int main()
 
 	std::cout << "counter (non zero means leaks): " << counter << "\ntotal: " << totalCounter;
 
-	std::cin.get();
+	//std::cin.get();
 	return 0;
 }
