@@ -1,18 +1,8 @@
 #pragma once
 
-// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Pinned vector 1.3
-// Define PINNED_VECTOR_MEMORY_CHECK to check if acces deleted memory areas (not working yet)
-// Define PINNED_VECTOR_BOUNDS_CHECK to check in bounds acces
-// https://github.com/meemknight/pinnedVector
-// licensed under MIT license, do not remove this notice https://github.com/meemknight/pinnedVector/blob/master/LICENSE
-// Luta Vlad 2021
-// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 /////////////////////////////////////////////
 //#define PINNED_VECTOR_BOUNDS_CHECK
-// It checks if you acces outside the array
+// It checks if you access outside the array
 /////////////////////////////////////////////
 #ifdef _DEBUG
 #define PINNED_VECTOR_BOUNDS_CHECK
@@ -22,21 +12,12 @@
 /////////////////////////////////////////////////////////////////////////////
 //#define PINNED_VECTOR_MEMORY_CHECK
 // 
-// this checks if you acces memory that was freed. 
-// I does not release memory, but rather ivalidates it so it would
-// fail on acces. Can consume a lot of memory due to this reason so use it 
-// only to debug and it can crash quickly if you allocate and deallocate 
+// this checks if you access memory that was freed.
+// It does not release memory, but rather invalidates it, so it would
+// fail on access. Can consume a lot of memory due to this reason so use it
+// only to debug, and it can crash quickly if you allocate and deallocate
 // often with this vector
 /////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////
-//logs
-//
-//Pinnded vecroe 1.2 -> fixed some forwarding semantics problems
-//Pinnded vecroe 1.3 -> moved max size from template to constructor
-//
-//
 
 #ifdef PINNED_VECTOR_BOUNDS_CHECK
 
@@ -54,7 +35,6 @@
 //it is used to check if the allocations fail
 #define PINNED_VECTOR_ALLOCATION_FAILED_ASSERT(x) assert(x)
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 //code
 
@@ -65,8 +45,6 @@
 #else
 #error pinned vector supports only windows and linux
 #endif
-
-
 
 #ifdef PINNED_VECTOR_WIN
 #include <Windows.h>
@@ -79,8 +57,6 @@
 #include <type_traits>
 #include "stdint.h"
 
-
-
 #ifdef PINNED_VECTOR_WIN
 
 #define PINNED_VECTOR_RESERVE_MEMORY(size)\
@@ -91,7 +67,6 @@
 
 #define PINNED_VECTOR_FREE_MEMORY(beg)\
 			VirtualFree((beg), 0, MEM_RELEASE)
-
 
 #else
 
@@ -105,14 +80,13 @@
 		(mprotect((beg), (size), PROT_READ|PROT_WRITE)==0, 1)
 		//(mprotect((beg), (size), PROT_READ|PROT_WRITE)==0) && (mlock((beg), (size)) == 0 && (((unsigned char*)beg)[size-1] = 0, 1))
 
+        /* dangerous af but works so whatever */
 #define maxElCount UINT64_MAX
 
 #define PINNED_VECTOR_FREE_MEMORY(beg) munmap((beg), maxElCount*sizeof(T))
 //#define PINNED_VECTOR_FREE_MEMORY(beg) ::free((void*)beg)
 
-
 #endif
-
 
 //maxElCount is the maximum number of ELEMENTS that the vector can store.
 
@@ -131,13 +105,13 @@ struct PinnedVector
 	iterator end() { return &((T *)beg_)[size_]; }
 	constIterator end() const { return &((T *)beg_)[size_]; }
 
-	PinnedVector(size_t maxElementCount = 1000)
+	explicit PinnedVector(size_t maxElementCount = 1000)
 	{
 		initializeArena(maxElementCount);
 	}
 
 	PinnedVector(PinnedVector &&other)
-	{
+ noexcept 	{
 		this->beg_ = other.beg_;
 		this->size_ = other.size_;
 
@@ -162,16 +136,16 @@ struct PinnedVector
 
 	void resize(size_t elementCount);
 
-	void reserve(size_t elementCount);
+    [[maybe_unused]] void reserve(size_t elementCount) const;
 
-	size_t size()const { return size_; }
+	[[nodiscard]] size_t size()const { return size_; }
 
-	bool empty() const
+    [[maybe_unused]] [[nodiscard]] bool empty() const
 	{
 		return (size_ == 0);
 	}
 
-	T *data();
+    [[maybe_unused]] T *data();
 
 	PinnedVector &operator= (const PinnedVector &other)
 	{
@@ -187,8 +161,8 @@ struct PinnedVector
 		return *this;
 	}
 
-	PinnedVector &operator= (const PinnedVector &&other)
-	{
+	PinnedVector &operator= (PinnedVector &&other)
+ noexcept 	{
 		if (this == &other)
 		{
 			return *this;
@@ -201,17 +175,17 @@ struct PinnedVector
 
 	T &operator[] (unsigned int index)
 	{
-		PINNED_VECTOR_ASSERT(index < size_);
+		PINNED_VECTOR_ASSERT(index < size_)
 		return static_cast<T *>(beg_)[index];
 	}
 
 	T operator[] (unsigned int index) const
 	{
-		PINNED_VECTOR_ASSERT(index < size_);
+		PINNED_VECTOR_ASSERT(index < size_)
 		return static_cast<T *>(beg_)[index];
 	}
 
-	void push_back(const T &el);
+    [[maybe_unused]] void push_back(const T &el);
 	void push_back(T &&el);
 	void pop_back();
 
@@ -220,7 +194,7 @@ struct PinnedVector
 		return (*this)[size_ - 1];
 	}
 
-	const T &top() const
+    [[maybe_unused]] const T &top() const
 	{
 		return (*this)[size_ - 1];
 	}
@@ -286,9 +260,9 @@ inline void PinnedVector<T>::resize(size_t elementCount)
 	}
 	else
 	{
-		if constexpr (!std::is_trivially_destructible<T>::value)
+		if constexpr (!std::is_trivially_destructible_v<T>)
 		{
-			for (int i = elementCount; i < size_; i++)
+			for (size_t i = elementCount; i < size_; i++)
 			{
 				beg_[i].~T();
 			}
@@ -300,21 +274,20 @@ inline void PinnedVector<T>::resize(size_t elementCount)
 }
 
 template<class T>
-inline void PinnedVector<T>::reserve(size_t elementCount)
-{
+[[maybe_unused]] inline void PinnedVector<T>::reserve(const size_t elementCount) const {
 	auto check = PINNED_VECTOR_COMMIT_MEMORY((beg_), (elementCount * sizeof(T)));
 	PINNED_VECTOR_ALLOCATION_FAILED_ASSERT(check);
 
 }
 
 template<class T>
-inline T *PinnedVector<T>::data()
+[[maybe_unused]] inline T *PinnedVector<T>::data()
 {
 	return beg_;
 }
 
 template<class T>
-inline void PinnedVector<T>::push_back(const T &el)
+[[maybe_unused]] inline void PinnedVector<T>::push_back(const T &el)
 {
 	noConstructorCallResize(size_ + 1);
 	//new(&beg_[size_ - 1])T(el);
@@ -355,7 +328,7 @@ inline void PinnedVector<T>::clear()
 	size_ = 0;
 }
 
-//todo add commited size_
+//Todo: add commited size_
 template<class T>
 inline void PinnedVector<T>::free()
 {
